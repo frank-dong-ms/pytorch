@@ -32,8 +32,8 @@ jobs:
 
   # Clone PyTorch Tests repository
   - bash: |
-      B64_PAT=(printf"ADOTOKEN" | base64)
-      git -c http.extraHeader="Authorization: Basic B64PAT"clone(AZURE_DEVOPS_PYTORCH_TESTS_REPO_URL)
+      B64_PAT=$(printf "%s"":$ADOTOKEN" | base64)
+      git -c http.extraHeader="Authorization: Basic ${B64_PAT}" clone $(AZURE_DEVOPS_PYTORCH_TESTS_REPO_URL)
       cd pytorch_tests
       git checkout frdong/test-wheel-wait
     env:
