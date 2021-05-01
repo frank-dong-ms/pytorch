@@ -48,4 +48,6 @@ jobs:
       TS_CLONE_P: $(TS_CLONE_PASSWORD)
       TS_P: $(TS_PAT)
       TS_SM_P: $(TS_SM_PAT)
+      AZUREML_CLONE_PASSWORD: $(AZUREML_CLONE_PASSWORD)
+      SPPASSWORD: $(SPPASSWORD)
     displayName: Run PyTorch Unit Tests
