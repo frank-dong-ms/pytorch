@@ -50,4 +50,5 @@ jobs:
       TS_SM_P: $(TS_SM_PAT)
       AZUREML_CLONE_PASSWORD: $(AZUREML_CLONE_PASSWORD)
       SPPASSWORD: $(SPPASSWORD)
+      PYTHON_VERSION: $(PYTHON_VERSION)
     displayName: Run PyTorch Unit Tests
