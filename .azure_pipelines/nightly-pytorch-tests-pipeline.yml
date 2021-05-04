@@ -20,19 +20,6 @@ stages:
           RUN_TESTS: $(RUN_TESTS_LIN)
           NIGHTLY_BUILD: True
 
-  - template: job_templates/pytorch-template-unix.yml
-    parameters:
-      name: ubuntu_1804_GPU_docker
-      pool: 'PyTorch-Linux-GPU'
-      container_endpoint: pytorchms.azurecr.io
-      customMatrixes:
-        Py_37_CUDA_102_cuDNN_7:
-          container_image: pytorchms.azurecr.io/ubuntu_1804_cuda_102_cudnn_7_dev
-          PYTHON_VERSION: 3.7
-          CUDA_VERSION: 102
-          RUN_TESTS: $(RUN_TESTS_LIN)
-          NIGHTLY_BUILD: True
-
   - template: job_templates/pytorch-template-win.yml
     parameters:
       name: windows_2019_CPU
@@ -41,16 +28,5 @@ stages:
         Py_37:
           PYTHON_VERSION: 3.7
           CUDA_VERSION: cpu
-          RUN_TESTS: $(RUN_TESTS_WIN)
-          NIGHTLY_BUILD: True
-
-  - template: job_templates/pytorch-template-win.yml
-    parameters:
-      name: windows_2019_GPU
-      pool: 'PyTorch-Win-GPU'
-      customMatrixes:
-        Py_38_CUDA_102_cuDNN_7:
-          PYTHON_VERSION: 3.7
-          CUDA_VERSION: 102
           RUN_TESTS: $(RUN_TESTS_WIN)
           NIGHTLY_BUILD: True
