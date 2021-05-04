@@ -29,6 +29,13 @@ jobs:
   # Delete pytorch_tests repo from previous builds if exists
   - bash: rm -rf pytorch_tests/
     displayName: Delete pytorch_tests repo from previous builds if exists
+    
+  # Always clean up env directory in conda for fresh builds
+  - task: DeleteFiles@1
+    inputs:
+      SourceFolder: /opt/conda/envs/
+      Contents: '**/*' 
+    displayName: Pre-build clean up previous environments
 
   # Clone PyTorch Tests repository
   - bash: |
