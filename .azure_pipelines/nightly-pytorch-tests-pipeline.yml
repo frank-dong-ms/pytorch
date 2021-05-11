@@ -19,14 +19,3 @@ stages:
           CUDA_VERSION: cpu
           RUN_TESTS: $(RUN_TESTS_LIN)
           NIGHTLY_BUILD: True
-
-  - template: job_templates/pytorch-template-win.yml
-    parameters:
-      name: windows_2019_CPU
-      pool: 'PyTorch-Win-CPU'
-      customMatrixes:
-        Py_37:
-          PYTHON_VERSION: 3.7
-          CUDA_VERSION: cpu
-          RUN_TESTS: $(RUN_TESTS_WIN)
-          NIGHTLY_BUILD: True
