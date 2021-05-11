@@ -21,9 +21,9 @@ jobs:
     name: ${{ parameters.pool}}
   variables:
     DECODE_PERCENTS: false
-#  container:
-#    image: $[variables['container_image']]
-#    endpoint: ${{parameters.container_endpoint}}
+  container:
+    image: $[variables['container_image']]
+    endpoint: ${{parameters.container_endpoint}}
 
   steps:
   # Delete pytorch_tests repo from previous builds if exists
