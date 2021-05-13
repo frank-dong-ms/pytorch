@@ -3,7 +3,7 @@
 # This build depends on 5 parameters set as an environment variables in the pipeline:
 #   - AZURE_DEVOPS_CLI_PAT: Secret var for authenticating to Azure DevOps
 #   - AZURE_STORAGE_KEY: Secret var for authenticating to Azure Storage
-#   - TS_CLONE_P, TS_P, TS_SM_P: Secret vars for specific unit tests
+#   - _TS_CLONE_P, _TS_P, _TS_SM_P: Secret vars for specific unit tests
 
 parameters:
   name: ''
@@ -21,41 +21,33 @@ jobs:
     name: ${{ parameters.pool}}
   variables:
     DECODE_PERCENTS: false
-  #container:
-  #  image: $[variables['container_image']]
-  #  endpoint: ${{parameters.container_endpoint}}
 
   steps:
+  # Don't checkout repo contents to save time and CPU compute. Environment variables
+  # related to checkout branch such as $(BUILD_SOURCEBRANCH) are still available.
+  - checkout: none
+
   # Delete pytorch_tests repo from previous builds if exists
   - bash: rm -rf pytorch_tests/
     displayName: Delete pytorch_tests repo from previous builds if exists
-    
-  # Always clean up env directory in conda for fresh builds
-  - task: DeleteFiles@1
-    inputs:
-      SourceFolder: /opt/conda/envs/
-      Contents: '**/*' 
-    displayName: Pre-build clean up previous environments
 
   # Clone PyTorch Tests repository
   - bash: |
-      B64_PAT=$(printf "%s"":$ADOTOKEN" | base64)
+      B64_PAT=$(printf "%s"":$_ADOTOKEN" | base64)
       git -c http.extraHeader="Authorization: Basic ${B64_PAT}" clone $(AZURE_DEVOPS_PYTORCH_TESTS_REPO_URL)
       cd pytorch_tests
-      git checkout frdong/test-wheel-wait
+      git checkout $(PYTORCH_TESTS_CHECKOUT_BRANCH)
     env:
-      ADOTOKEN: $(AZURE_DEVOPS_CLI_PAT)
+      _ADOTOKEN: $(AZURE_DEVOPS_CLI_PAT)
     displayName: Clone PyTorch Tests repo
-    
+
   # Run PyTorch Unit Tests
   - bash: bash $(Build.SourcesDirectory)/pytorch_tests/scripts/linux/run.sh
     env:
-      ADOTOKEN: $(AZURE_DEVOPS_CLI_PAT)
-      AZURE_S_K: $(AZURE_STORAGE_KEY)
-      TS_CLONE_P: $(TS_CLONE_PASSWORD)
-      TS_P: $(TS_PAT)
-      TS_SM_P: $(TS_SM_PAT)
-      AZUREML_CLONE_PASSWORD: $(AZUREML_CLONE_PASSWORD)
-      SPPASSWORD: $(SPPASSWORD)
-      PYTHON_VERSION: $(PYTHON_VERSION)
+      _AZURE_STORAGE_KEY: $(AZURE_STORAGE_KEY)
+      _TS_CLONE_P: $(TS_CLONE_PASSWORD)
+      _TS_P: $(TS_PAT)
+      _TS_SM_P: $(TS_SM_PAT)
+      _AZUREML_CLONE_PASSWORD: $(AZUREML_CLONE_PASSWORD)
+      _SPPASSWORD: $(SPPASSWORD)
     displayName: Run PyTorch Unit Tests
