@@ -7,10 +7,38 @@
 #include <ATen/native/Resize.h>
 #include <ATen/native/Sorting.h>
 #include <ATen/native/SortingUtils.h>
+#include <ATen/native/ReduceOpsUtils.h>
 
 #include <utility>
 
 namespace at {
+namespace meta {
+using namespace native;
+  TORCH_META_FUNC(topk) (
+    const Tensor& self,
+    int64_t k,
+    int64_t dim_,
+    bool largest,
+    bool sorted) {
+
+    int64_t dim = maybe_wrap_dim(dim_, self.dim(), /*wrap_scalar=*/true);
+    TORCH_CHECK(
+        k >= 0 && k <= (self.dim() > 0 ? self.size(dim) : 1),
+        "selected index k out of range");
+    int64_t sliceSize = self.dim() == 0 ? 1 : self.size(dim);
+    TORCH_CHECK(k >= 0 && k <= sliceSize, "k not in range for dimension");
+
+    // Build the output size, which is the dim being selected set to
+    // size k
+    DimVector topKSize(self.sizes().vec());
+    if (topKSize.size() > 0) {
+      topKSize[dim] = k;
+    }
+    set_output(0, topKSize, self.options());
+    set_output(1, topKSize, self.options().dtype(at::kLong));
+  }
+} // namespace meta
+
 namespace native {
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
@@ -229,7 +257,6 @@ void quantile_impl(
       interpolation == QUANTILE_INTERPOLATION_MODE::MIDPOINT) {
     // calculate weights for linear and midpoint
     Tensor weights = interpolation == QUANTILE_INTERPOLATION_MODE::MIDPOINT
-        // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
         ? at::full_like(ranks, 0.5)
         : ranks - ranks_below;
 
@@ -258,16 +285,7 @@ std::tuple<Tensor&, Tensor&> kthvalue_out_impl_cpu(
     int64_t dim_,
     bool keepdim) {
   int64_t dim = maybe_wrap_dim(dim_, self.dim(), /*wrap_scalar=*/true);
-  // FIXME: This seems bogus, I only do this because it was the old behaviour.
-  //        The reductions are fine, as long as the axis being reduced along
-  //        isn't of 0 elements (and the output has elements).
-  TORCH_CHECK(
-      self.numel() > 0,
-      "cannot perform reduction function kthvalue",
-      " on tensor with no elements because the operation does not have an identity");
-  TORCH_CHECK(
-      k > 0 && k <= (self.dim() > 0 ? self.size(dim) : 1),
-      "selected index k out of range");
+  zero_numel_check_dims(self, dim, "kthvalue()");
 
   at::assert_no_overlap(self, values);
 
@@ -326,10 +344,7 @@ std::tuple<Tensor&, Tensor&> median_with_indices_impl(
   dim = at::maybe_wrap_dim(dim, self.dim());
 
   int64_t size = self.dim() > 0 ? self.size(dim) : 1;
-  TORCH_CHECK(
-      size > 0,
-      "median() cannot compute median for a dimension of size 0 because ",
-      "the operation does not have an identity");
+  zero_numel_check_dims(self, dim, "median()");
 
   checkDeviceType("median", {values, indices}, self.device().type());
   checkScalarType("median", {indices, "indices", 1}, kLong);
@@ -413,14 +428,10 @@ std::tuple<Tensor&, Tensor&> median_with_indices_impl(
 Tensor median_impl(const Tensor& self, bool ignore_nan) {
   NoNamesGuard guard;
 
-  int64_t size = self.numel();
-  TORCH_CHECK(
-      size > 0,
-      "median() operation does not have an identity for empty input tensor");
-
   // Clone the input tensor so we can partition it around the median value
   Tensor in = self.clone();
   Tensor out = at::empty({}, self.options());
+  const int64_t size = self.numel();
 
   AT_DISPATCH_ALL_TYPES(in.scalar_type(), "median_cpu", [&] {
     scalar_t* op = out.data_ptr<scalar_t>();
@@ -718,40 +729,25 @@ std::tuple<Tensor, Tensor> kthvalue(
   return at::kthvalue(self, k, dimname_to_position(self, dim), keepdim);
 }
 
-std::tuple<Tensor&, Tensor&> topk_out_cpu(const Tensor& self,
+TORCH_IMPL_FUNC(topk_out_cpu)
+   (const Tensor& self,
     int64_t k,
     int64_t dim_,
     bool largest,
     bool sorted,
-    Tensor& values,
-    Tensor& indices) {
+    const Tensor& values,
+    const Tensor& indices) {
   int64_t dim = maybe_wrap_dim(dim_, self.dim(), /*wrap_scalar=*/true);
   TORCH_CHECK(
       k >= 0 && k <= (self.dim() > 0 ? self.size(dim) : 1),
       "selected index k out of range");
 
-  _allocate_or_resize_output_with_indices(values, indices, self, dim_, k);
   if (self.dim() == 0 && self.numel() == 1) {
     values.copy_(self);
     indices.zero_();
-    return std::forward_as_tuple(values, indices);
+  } else {
+    topk_stub(kCPU, values, indices, self, k, dim, largest, sorted);
   }
-
-  topk_stub(kCPU, values, indices, self, k, dim, largest, sorted);
-
-  return std::forward_as_tuple(values, indices);
-}
-
-std::tuple<Tensor, Tensor> topk(
-    const Tensor& self,
-    int64_t k,
-    int64_t dim,
-    bool largest,
-    bool sorted) {
-  Tensor values = at::empty({0}, self.options());
-  Tensor indices = at::empty({0}, self.options().dtype(kLong));
-  at::topk_out(values, indices, self, k, dim, largest, sorted);
-  return std::make_tuple(values, indices);
 }
 
 std::tuple<Tensor&, Tensor&> median_out_cpu(
